@@ -11,6 +11,7 @@ import android.os.Looper
 import android.util.Base64
 import android.util.Log
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.google.android.gms.R
@@ -27,6 +28,7 @@ import kotlin.random.Random
 class SafetyNetPreferencesFragment : PreferenceFragmentCompat() {
     private lateinit var runAttest: Preference
     private lateinit var runReCaptcha: Preference
+    private lateinit var seeRecent: Preference
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         addPreferencesFromResource(R.xml.preferences_safetynet)
@@ -35,6 +37,7 @@ class SafetyNetPreferencesFragment : PreferenceFragmentCompat() {
     override fun onBindPreferences() {
         runAttest = preferenceScreen.findPreference("pref_snet_run_attest") ?: runAttest
         runReCaptcha = preferenceScreen.findPreference("pref_recaptcha_run_test") ?: runReCaptcha
+        seeRecent = preferenceScreen.findPreference("pref_snet_recent") ?: seeRecent
 
         // TODO: Use SafetyNet client library once ready
         runAttest.setOnPreferenceClickListener {
@@ -116,6 +119,10 @@ class SafetyNetPreferencesFragment : PreferenceFragmentCompat() {
                     }
                 }
             }, "6Lc4TzgeAAAAAJnW7Jbo6UtQ0xGuTKjHAeyhINuq")
+            true
+        }
+        seeRecent.setOnPreferenceClickListener {
+            findNavController().navigate(requireContext(), R.id.openSafetyNetRecentLogs)
             true
         }
     }

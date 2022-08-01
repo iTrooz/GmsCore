@@ -78,13 +78,26 @@ class SafetyNetClientServiceImpl(private val context: Context, private val packa
         }
 
         lifecycleScope.launchWhenStarted {
+            val db = SafetyNetDatabase(context)
+            var requestID: Long = -1
             try {
                 val attestation = Attestation(context, packageName)
-                attestation.buildPayload(nonce)
+                val safetyNetData = attestation.buildPayload(nonce)
+
+                requestID = db.insertRecentRequestStart(
+                    SafetyNetRequestType.ATTESTATION,
+                    safetyNetData.packageName,
+                    apiKey,
+                    safetyNetData.nonce?.toByteArray(),
+                    safetyNetData.currentTimeMs ?: 0
+                )
+
                 val data = mapOf("contentBinding" to attestation.payloadHashBase64)
                 val dg = withContext(Dispatchers.IO) { DroidGuardResultCreator.getResult(context, "attest", data) }
                 attestation.setDroidGuardResult(Base64.encodeToString(dg, Base64.NO_WRAP + Base64.NO_PADDING + Base64.URL_SAFE))
                 val jwsResult = withContext(Dispatchers.IO) { attestation.attest(apiKey) }
+
+                db.insertRecentRequestEnd(requestID, Status.SUCCESS, jwsResult)
                 callbacks.onAttestationData(Status.SUCCESS, AttestationData(jwsResult))
             } catch (e: Exception) {
                 Log.w(TAG, "Exception during attest: ${e.javaClass.name}", e)
@@ -92,8 +105,14 @@ class SafetyNetClientServiceImpl(private val context: Context, private val packa
                     is IOException -> SafetyNetStatusCodes.NETWORK_ERROR
                     else -> SafetyNetStatusCodes.ERROR
                 }
-                callbacks.onAttestationData(Status(code, e.localizedMessage), null)
+
+                val status = Status(code, e.localizedMessage)
+
+                // This shouldn't happen, but do not update the database if it didn't insert the start of the request
+                if(requestID!=-1L)db.insertRecentRequestEnd(requestID, status, null)
+                callbacks.onAttestationData(status, null)
             }
+            db.close()
         }
     }
 
@@ -138,6 +157,10 @@ class SafetyNetClientServiceImpl(private val context: Context, private val packa
             return
         }
 
+
+        val db = SafetyNetDatabase(context)
+        val requestID = db.insertRecentRequestStart(SafetyNetRequestType.RECAPTCHA, context.packageName, siteKey, null, System.currentTimeMillis())
+
         val intent = Intent("org.microg.gms.safetynet.RECAPTCHA_ACTIVITY")
         intent.`package` = context.packageName
         intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
@@ -145,18 +168,19 @@ class SafetyNetClientServiceImpl(private val context: Context, private val packa
         intent.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
         val androidId = getSettings(context, getContentUri(context), arrayOf(SettingsContract.CheckIn.ANDROID_ID)) { cursor: Cursor -> cursor.getLong(0) }
         val params = StringBuilder()
-        val packageFileDigest = try {
-            Base64.encodeToString(Attestation.getPackageFileDigest(context, packageName), Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+
+        val (packageFileDigest, packageSignatures) = try {
+            Pair(
+                Base64.encodeToString(Attestation.getPackageFileDigest(context, packageName), Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING),
+                Attestation.getPackageSignatures(context, packageName).map { Base64.encodeToString(it, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING) }
+            )
         } catch (e: Exception) {
+            db.insertRecentRequestEnd(requestID, Status(SafetyNetStatusCodes.ERROR, e.localizedMessage), null)
+            db.close()
             callbacks.onRecaptchaResult(Status(SafetyNetStatusCodes.ERROR, e.localizedMessage), null)
             return
         }
-        val packageSignatures = try {
-            Attestation.getPackageSignatures(context, packageName).map { Base64.encodeToString(it, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING) }
-        } catch (e: Exception) {
-            callbacks.onRecaptchaResult(Status(SafetyNetStatusCodes.ERROR, e.localizedMessage), null)
-            return
-        }
+
         params.appendUrlEncodedParam("k", siteKey)
                 .appendUrlEncodedParam("di", androidId.toString())
                 .appendUrlEncodedParam("pk", packageName)
@@ -175,8 +199,12 @@ class SafetyNetClientServiceImpl(private val context: Context, private val packa
         intent.putExtra("result", object : ResultReceiver(null) {
             override fun onReceiveResult(resultCode: Int, resultData: Bundle) {
                 if (resultCode != 0) {
+                    db.insertRecentRequestEnd(requestID, Status(resultData.getInt("errorCode"), resultData.getString("error")), null)
+                    db.close()
                     callbacks.onRecaptchaResult(Status(resultData.getInt("errorCode"), resultData.getString("error")), null)
                 } else {
+                    db.insertRecentRequestEnd(requestID, Status.SUCCESS, resultData.getString("token"))
+                    db.close()
                     callbacks.onRecaptchaResult(Status.SUCCESS, RecaptchaResultData().apply { token = resultData.getString("token") })
                 }
             }

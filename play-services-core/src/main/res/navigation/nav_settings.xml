@@ -88,11 +88,18 @@
         <action
             android:id="@+id/openSafetyNetAdvancedSettings"
             app:destination="@id/safetyNetAdvancedFragment" />
+        <action
+            android:id="@+id/openSafetyNetRecentLogs"
+            app:destination="@id/safetyNetRecentLogs" />
     </fragment>
     <fragment
         android:id="@+id/safetyNetAdvancedFragment"
         android:name="org.microg.gms.ui.SafetyNetAdvancedFragment"
         android:label="@string/service_name_snet" />
+    <fragment
+        android:id="@+id/safetyNetRecentLogs"
+        android:name="org.microg.gms.ui.SafetyNetRecentFragment"
+        android:label="@string/snet_recent_requests" />
 
     <fragment
         android:id="@+id/googleMoreFragment"
