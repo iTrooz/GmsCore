@@ -10,12 +10,15 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.database.sqlite.SQLiteStatement;
 import android.os.Build;
+import android.util.Log;
 
 import com.google.android.gms.common.api.Status;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 
 public class SafetyNetDatabase extends SQLiteOpenHelper {
@@ -28,7 +31,7 @@ public class SafetyNetDatabase extends SQLiteOpenHelper {
             "package_name TEXT," +
             "request_key TEXT," +
             "nonce TEXT," +
-            "timestamp TEXT," +
+            "timestamp INTEGER," +
             "result_status_code INTEGER DEFAULT NULL," +
             "result_status_msg TEXT DEFAULT NULL," +
             "result_data TEXT DEFAULT NULL)";
@@ -51,6 +54,7 @@ public class SafetyNetDatabase extends SQLiteOpenHelper {
         if (Build.VERSION.SDK_INT >= 16) {
             this.setWriteAheadLoggingEnabled(true);
         }
+        clearOldRequests();
     }
 
     @Override
@@ -80,6 +84,20 @@ public class SafetyNetDatabase extends SQLiteOpenHelper {
 
         return summary;
 
+    }
+
+    public void clearOldRequests(){
+        final int timeout = 1000*60*60*24*7; // 7 days
+
+        SQLiteDatabase db = getWritableDatabase();
+
+        // whereArgs (for delete()) do not work with integers
+        SQLiteStatement sqLiteStatement = db.compileStatement("DELETE FROM "+TABLE_RECENTS+" WHERE "+FIELD_TIMESTAMP+" + ? < ?");
+        sqLiteStatement.bindLong(1, timeout);
+        sqLiteStatement.bindLong(2, System.currentTimeMillis());
+        int rows = sqLiteStatement.executeUpdateDelete();
+
+        if(rows!=0) Log.d(TAG, "Cleared "+rows+" old request(s)");
     }
 
     public synchronized List<SafetyNetSummary> getRecentRequestsList() {
