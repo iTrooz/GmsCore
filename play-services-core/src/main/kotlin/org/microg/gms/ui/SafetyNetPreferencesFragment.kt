@@ -10,7 +10,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Base64
 import android.util.Log
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
@@ -19,9 +18,7 @@ import com.google.android.gms.common.api.Status
 import com.google.android.gms.safetynet.AttestationData
 import com.google.android.gms.safetynet.RecaptchaResultData
 import com.google.android.gms.safetynet.internal.ISafetyNetCallbacks
-import org.json.JSONException
 import org.json.JSONObject
-import org.microg.gms.safetynet.SafetyNetClientService
 import org.microg.gms.safetynet.SafetyNetClientServiceImpl
 import kotlin.random.Random
 
@@ -122,7 +119,7 @@ class SafetyNetPreferencesFragment : PreferenceFragmentCompat() {
             true
         }
         seeRecent.setOnPreferenceClickListener {
-            findNavController().navigate(requireContext(), R.id.openSafetyNetRecentLogs)
+            findNavController().navigate(requireContext(), R.id.openSafetyNetRecent)
             true
         }
     }

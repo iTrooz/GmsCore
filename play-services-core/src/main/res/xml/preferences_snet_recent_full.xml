@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <PreferenceCategory>
+
+        <Preference
+            android:key="package_name"
+            android:selectable="false"
+            tools:summary="Package of the application" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

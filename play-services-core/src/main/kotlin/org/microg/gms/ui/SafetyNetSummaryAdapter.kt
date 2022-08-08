@@ -1,6 +1,7 @@
 package org.microg.gms.ui
 
 import android.text.format.DateUtils
+import android.util.Log
 import org.microg.gms.safetynet.SafetyNetSummary
 import org.microg.gms.ui.SafetyNetSummaryAdapter.SafetyNetSummaryViewHolder
 import android.view.ViewGroup
@@ -13,7 +14,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.R
 
-class SafetyNetSummaryAdapter(recentRequests: List<SafetyNetSummary>) :
+class SafetyNetSummaryAdapter(recentRequests: List<SafetyNetSummary>, var clickHandler: (SafetyNetSummary) -> Unit) :
     ListAdapter<SafetyNetSummary, SafetyNetSummaryViewHolder>(DiffCallback) {
 
     init {
@@ -41,7 +42,7 @@ class SafetyNetSummaryAdapter(recentRequests: List<SafetyNetSummary>) :
         val context = holder.packageName.context
         val pm = context.packageManager
 
-        holder.appIcon.setImageDrawable(pm.getApplicationInfoIfExists(summary!!.packageName)?.loadIcon(pm))
+        holder.appIcon.setImageDrawable(pm.getApplicationInfoIfExists(summary.packageName)?.loadIcon(pm))
 
         holder.requestType.text = summary.requestType.name
         holder.date.text = DateUtils.getRelativeDateTimeString(context, summary.timestamp, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, DateUtils.FORMAT_SHOW_TIME)
@@ -52,6 +53,10 @@ class SafetyNetSummaryAdapter(recentRequests: List<SafetyNetSummary>) :
         holder.infoMsg.setTextColor(infoMsg.component1())
         holder.infoMsg.text = infoMsg.component2()
 
+        holder.itemView.setOnClickListener {
+            Log.d("MYTEST", "call clickHandler()")
+            clickHandler(summary)
+        }
     }
 
     class SafetyNetSummaryViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -61,5 +66,4 @@ class SafetyNetSummaryAdapter(recentRequests: List<SafetyNetSummary>) :
         val packageName: TextView = view.findViewById(R.id.snet_recent_package)
         val infoMsg: TextView = view.findViewById(R.id.snet_recent_infomsg)
     }
-
 }
