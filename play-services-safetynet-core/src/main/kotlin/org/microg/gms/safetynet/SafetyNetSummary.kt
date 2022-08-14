@@ -1,12 +1,15 @@
 package org.microg.gms.safetynet
 
 import android.graphics.Color
+import android.os.Parcel
+import android.os.Parcelable
 import android.util.Base64
 import com.google.android.gms.common.api.Status
 import org.json.JSONObject
+import org.microg.gms.common.Utils
 import kotlin.properties.Delegates
 
-data class SafetyNetSummary(
+data class SafetyNetSummary (
     val requestType: SafetyNetRequestType,
 
 
@@ -16,7 +19,7 @@ data class SafetyNetSummary(
     val nonce: ByteArray?, // null with SafetyNetRequestType::RECAPTCHA
     val timestamp: Long,
 
-    ) {
+    ) : Parcelable {
 
     var id by Delegates.notNull<Int>()
 
@@ -24,7 +27,6 @@ data class SafetyNetSummary(
     // note : requestStatus do not represent the actual status in case of an attestation, it will be in resultData
     var resultStatus: Status? = null
     var resultData: String? = null
-
 
     fun getInfoMessage() : Pair<Int, String> {
         if(resultStatus==null)return Pair(Color.CYAN, "Not completed yet")
@@ -79,7 +81,7 @@ data class SafetyNetSummary(
         if (requestType != other.requestType) return false
         if (packageName != other.packageName) return false
         if (key != other.key) return false
-        if (nonce != other.nonce) return false
+        if (!nonce.contentEquals(other.nonce)) return false
         if (resultStatus != other.resultStatus) return false
         if (resultData != other.resultData) return false
 
@@ -94,6 +96,44 @@ data class SafetyNetSummary(
         result = 31 * result + (resultStatus?.hashCode() ?: 0)
         result = 31 * result + (resultData?.hashCode() ?: 0)
         return result
+    }
+
+
+    // Parcelable implementation
+
+    constructor(parcel: Parcel) : this(
+        SafetyNetRequestType.valueOf(parcel.readString()!!),
+        parcel.readString()!!,
+        parcel.readString()!!,
+        parcel.createByteArray(),
+        parcel.readLong()
+    ) {
+        resultStatus = parcel.readParcelable(Status::class.java.classLoader)
+        resultData = parcel.readString()
+    }
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeString(requestType.name)
+        parcel.writeString(packageName)
+        parcel.writeString(key)
+        parcel.writeByteArray(nonce)
+        parcel.writeLong(timestamp)
+        parcel.writeParcelable(resultStatus, flags)
+        parcel.writeString(resultData)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object CREATOR : Parcelable.Creator<SafetyNetSummary> {
+        override fun createFromParcel(parcel: Parcel): SafetyNetSummary {
+            return SafetyNetSummary(parcel)
+        }
+
+                                                                                                                                                                                                                                                override fun newArray(size: Int): Array<SafetyNetSummary?> {
+            return arrayOfNulls(size)
+        }
     }
 
 
